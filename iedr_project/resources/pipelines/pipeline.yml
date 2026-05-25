@@ -1,18 +1,19 @@
-id: 61758a1d-1c7a-4842-9817-e99191b5f4dd
-pipeline_type: WORKSPACE
-name: IEDR Pipeline
-configuration:
-  catalog: iedr
-  table_list: "['circuits', 'planned_der', 'install_der']"
-  utility_list: "['utility1', 'utility2']"
-libraries:
-  - glob:
-      include: ../../src/pipelines/IEDR_Pipeline/transformations/**
-schema: silver
-continuous: false
-development: false
-photon: true
-channel: CURRENT
-catalog: iedr
-serverless: true
-root_path: ../../src/pipelines/IEDR_Pipeline
+resources:
+  pipelines:
+    pipeline_iedr_pipeline:
+      name: IEDR Pipeline
+      configuration:
+        catalog: iedr
+        table_list: "['circuits', 'planned_der', 'install_der']"
+        utility_list: "['utility1', 'utility2']"
+      libraries:
+        - glob:
+            include: ../../src/pipelines/IEDR_Pipeline/transformations/**
+      schema: silver
+      continuous: false
+      development: false
+      photon: true
+      channel: CURRENT
+      catalog: iedr
+      serverless: true
+      root_path: ../../src/pipelines/IEDR_Pipeline
