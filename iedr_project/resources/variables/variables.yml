@@ -1,3 +1,7 @@
 variables:
-  catalog_name:
+  catalog:
     default: iedr
+  table_list:
+    default: ['circuits', 'planned_der', 'install_der']
+  utility_list:
+    default: ['utility1', 'utility2']
