@@ -3,9 +3,9 @@ resources:
     pipeline_iedr_pipeline:
       name: IEDR Pipeline
       configuration:
-        catalog: iedr
-        table_list: "['circuits', 'planned_der', 'install_der']"
-        utility_list: "['utility1', 'utility2']"
+        catalog: ${var.catalog}
+        table_list: ${var.table_list}
+        utility_list: ${var.utility_list}
       libraries:
         - glob:
             include: ../../src/pipelines/IEDR_Pipeline/transformations/**

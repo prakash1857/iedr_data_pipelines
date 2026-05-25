@@ -13,8 +13,10 @@ include:
 variables:
   catalog:
     description: The catalog to use
-  schema:
-    description: The schema to use
+  table_list:
+    description: The table lists
+  utility_list:
+    description: The utility list
 
 targets:
   dev:
@@ -31,7 +33,6 @@ targets:
       host: https://dbc-8bd3ea9d-cb6c.cloud.databricks.com
     variables:
       catalog: iedr
-      schema: dev
   prod:
     mode: production
     workspace:
@@ -40,7 +41,6 @@ targets:
       root_path: /Workspace/Users/prakash1857@gmail.com/PROD/.bundle/${bundle.name}/${bundle.target}
     variables:
       catalog: prod_iedr
-      schema: prod
     permissions:
       - group_name: admins
         level: CAN_MANAGE
