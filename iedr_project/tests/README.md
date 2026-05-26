@@ -1,226 +1,488 @@
-# IEDR Pipeline Test Suite
+# IEDR Pipeline Test Suite - Silver Layer Tests
 
-Comprehensive test coverage for the IEDR (Integrated Electricity Distribution Resource) data pipeline.
+Comprehensive test coverage for the IEDR (Integrated Electricity Distribution Resource) data pipeline silver layer transformations.
 
 ## Overview
 
-This test suite validates the IEDR Pipeline across all layers (Bronze, Silver, Gold) and includes:
-- **37 unit tests** covering individual transformations
-- **Integration tests** validating end-to-end data flow
-- **Data quality tests** ensuring referential integrity and constraints
-- **Schema validation** for all data layers
+The silver layer test suite validates data quality, business logic, and transformation correctness for:
+- **Circuits Silver Layer**: Utility data aggregation and normalization
+- **Planned DER Silver Layer**: Project validation and capacity tracking
+- **Installed DER Silver Layer**: Installation data processing and aggregation
 
 ## Test Structure
 
 ```
 tests/
-├── conftest.py                  # Pytest configuration and fixtures
-├── iedr_pipeline_test.py         # Main test suite (renamed to iedr_pipeline_test.py recommended)
-└── README.md                    # This file
+├── conftest.py                         # Pytest configuration and fixtures
+├── test_circuits_silver_layer.py       # Circuits transformation tests (9 tests)
+├── test_planned_der_silver_layer.py    # Planned DER transformation tests (10 tests)
+├── test_install_der_silver_layer.py    # Installed DER transformation tests (10 tests)
+└── README.md                           # This file
 
 fixtures/
-├── utility1_circuits_sample.json
-├── utility2_circuits_sample.json
-├── planned_der_sample.json
-└── install_der_sample.json
+└── .gitkeep                            # Placeholder for test fixtures
 ```
 
-## Test Coverage
+## Test Coverage Summary
 
-### Bronze Layer Tests (4 tests)
-- ✅ Utility1 circuits schema validation (segment-level data)
-- ✅ Utility2 circuits schema validation (circuit-level data)
-- ✅ Planned DER schema validation
-- ✅ Installed DER schema validation
+| Test File                            | Tests | Lines | Coverage                                                    |
+|--------------------------------------|-------|-------|-------------------------------------------------------------|
+| test_circuits_silver_layer.py        | 9     | 375   | Aggregation, union, validation, utilization, deduplication  |
+| test_planned_der_silver_layer.py     | 10    | 403   | Validation, dates, status, capacity, technology, aggregation|
+| test_install_der_silver_layer.py     | 10    | 422   | Validation, dates, capacity, technology, location, aggregation|
+| **Total**                            | **29**| **1200** | **Complete silver layer validation**                     |
 
-### Silver Layer - Circuits (6 tests)
-- ✅ Utility1 segment aggregation to circuit level
-- ✅ Utility2 normalization
-- ✅ Union operation between utilities
-- ✅ NULL and empty string filtering
-- ✅ Data quality checks (positive voltages, capacities)
-- ✅ Schema consistency across sources
+## Detailed Test Coverage
 
-### Silver Layer - Planned DER (4 tests)
-- ✅ Circuit ID validation
-- ✅ Date parsing for commission dates
-- ✅ Project status filtering
-- ✅ Capacity validation (positive values)
+### test_circuits_silver_layer.py (9 tests)
 
-### Silver Layer - Installed DER (4 tests)
-- ✅ Installation data processing
-- ✅ Technology type categorization (Solar, Wind, Battery)
-- ✅ Commissioning date parsing
-- ✅ Capacity aggregation by circuit
+#### 1. `test_utility1_segment_aggregation_to_circuit`
+**Purpose**: Validate segment-level to circuit-level aggregation for Utility1 data
 
-### Gold Layer - Circuit Aggregations (2 tests)
-- ✅ Circuit summary aggregations
-- ✅ Utilization percentage calculation
+**Business Logic**:
+- Group by `circuit_id`
+- `SUM(length_km)` → `total_length_km`
+- `SUM(capacity_mva)` → `total_capacity_mva`
+- `AVG(load_mva)` → `avg_load_mva`
+- `AVG(voltage_kv)` → `voltage_kv` (should be consistent across segments)
 
-### Integration Tests (5 tests)
-- ✅ Circuits to DER join operations
-- ✅ Full pipeline flow (Bronze → Silver → Gold)
-- ✅ SCD Type 1 update logic
-- ✅ Data lineage validation
-- ✅ Metadata preservation
+**Test Data**: 3 segments for CKT001, 1 segment for CKT002
 
-### Data Quality Tests (3 tests)
-- ✅ Duplicate circuit detection and removal
-- ✅ NULL constraint violation detection
-- ✅ Referential integrity (circuits ↔ DER)
+**Assertions**:
+- Circuit count = 2
+- CKT001: length = 5.2 km (2.5 + 1.8 + 0.9)
+- CKT001: capacity = 30.0 MVA (10 + 10 + 10)
+- CKT001: avg_load = 7.27 MVA ((7.5 + 6.2 + 8.1) / 3)
+
+#### 2. `test_utility2_circuit_level_normalization`
+**Purpose**: Validate Utility2 data normalization (already at circuit level)
+
+**Business Logic**:
+- No aggregation needed (data already circuit-level)
+- Cast string types to numeric (double)
+- Standardize column names to match Utility1 output
+
+**Test Data**: 3 circuits with string numeric values
+
+**Assertions**:
+- Schema has double types for numeric columns
+- Data integrity maintained after type conversion
+
+#### 3. `test_union_multiple_utilities`
+**Purpose**: Validate union of Utility1 and Utility2 datasets
+
+**Business Logic**:
+- Union aggregated Utility1 data with normalized Utility2 data
+- Ensure schema alignment
+- No data loss during union
+
+**Test Data**: 2 circuits from Utility1, 2 from Utility2
+
+**Assertions**:
+- Total count = 4 circuits
+- All circuit IDs present
+- No duplicate circuits
+
+#### 4. `test_null_and_empty_circuit_id_filtering`
+**Purpose**: Validate filtering of invalid circuit IDs
+
+**Data Quality Rules**:
+- `circuit_id IS NOT NULL`
+- `TRIM(circuit_id) != ''`
+
+**Test Data**: Valid, NULL, empty string, and whitespace circuit IDs
+
+**Assertions**:
+- Only 2 valid circuits remain
+- Invalid records filtered out
+
+#### 5. `test_voltage_validation`
+**Purpose**: Validate voltage values are positive
+
+**Data Quality Rules**:
+- `voltage_kv > 0`
+
+**Test Data**: Valid, negative, and zero voltages
+
+**Assertions**:
+- Only positive voltages remain
+- Negative and zero values filtered
+
+#### 6. `test_capacity_validation`
+**Purpose**: Validate capacity and load values
+
+**Data Quality Rules**:
+- `total_capacity_mva > 0`
+- `avg_load_mva >= 0` (zero load acceptable)
+
+**Test Data**: Valid, negative capacity, negative load, zero load
+
+**Assertions**:
+- Invalid capacity/load filtered
+- Zero load is acceptable
+
+#### 7. `test_utilization_calculation`
+**Purpose**: Validate circuit utilization percentage calculation
+
+**Business Logic**:
+- `utilization_pct = (avg_load_mva / total_capacity_mva) * 100`
+
+**Test Data**: Various utilization scenarios (34.25%, 75%, 100%, 0%)
+
+**Assertions**:
+- Correct calculation for all scenarios
+- Edge case (0% utilization) handled
+
+#### 8. `test_deduplication`
+**Purpose**: Validate handling of duplicate circuit records
+
+**Business Logic**:
+- Keep most recent record based on `ingestion_timestamp`
+- Each `circuit_id` appears only once
+
+**Test Data**: Duplicate CKT001 with different timestamps
+
+**Assertions**:
+- 2 unique circuits after deduplication
+- Most recent record kept for duplicates
+
+---
+
+### test_planned_der_silver_layer.py (10 tests)
+
+#### 1. `test_circuit_id_validation`
+**Purpose**: Validate only records with valid circuit IDs are processed
+
+**Data Quality Rules**:
+- `circuit_id IS NOT NULL`
+- `TRIM(circuit_id) != ''`
+
+**Test Data**: Valid, NULL, empty, and whitespace circuit IDs
+
+**Assertions**: Only valid circuit IDs remain
+
+#### 2. `test_date_parsing_and_validation`
+**Purpose**: Validate planned commission date parsing
+
+**Business Logic**:
+- Parse `planned_commission_date` (YYYY-MM-DD) to date type
+- Invalid dates → NULL
+
+**Test Data**: Valid dates, invalid date format, NULL
+
+**Assertions**:
+- 3 valid dates parsed correctly
+- Invalid dates result in NULL
+
+#### 3. `test_project_status_filtering`
+**Purpose**: Validate filtering by project status
+
+**Business Logic**:
+- Include only 'Planned' or 'Approved' projects
+- Exclude 'Cancelled', 'Completed', 'On Hold'
+
+**Test Data**: Various project statuses
+
+**Assertions**:
+- Only 'Planned' and 'Approved' projects remain
+- Other statuses filtered
+
+#### 4. `test_capacity_validation_and_conversion`
+**Purpose**: Validate capacity values are positive and numeric
+
+**Data Quality Rules**:
+- `capacity_kw > 0`
+- Convert string to double
+
+**Test Data**: Valid, negative, zero, decimal, non-numeric values
+
+**Assertions**:
+- Only positive numeric capacities remain
+- Non-numeric and invalid values filtered
+
+#### 5. `test_technology_type_categorization`
+**Purpose**: Validate technology type standardization
+
+**Business Logic**:
+- Standardize case variations (Solar, SOLAR → Solar)
+- Map aliases (PV → Solar, BESS → Battery)
+
+**Test Data**: Various technology type spellings and aliases
+
+**Assertions**:
+- All variations standardized correctly
+- Solar, Wind, Battery types recognized
+
+#### 6. `test_capacity_aggregation_by_circuit`
+**Purpose**: Validate aggregation of planned capacity by circuit
+
+**Business Logic**:
+- `SUM(capacity_kw)` per circuit
+- `COUNT(project_id)` per circuit
+
+**Test Data**: 3 projects on CKT001, 1 on CKT002, 1 on CKT003
+
+**Assertions**:
+- CKT001: total = 1750 kW (500 + 250 + 1000), count = 3
+- CKT002: total = 750 kW, count = 1
+
+#### 7. `test_duplicate_project_id_handling`
+**Purpose**: Validate handling of duplicate project IDs
+
+**Business Logic**:
+- Keep most recent record based on `ingestion_timestamp`
+
+**Test Data**: Duplicate PRJ001 with different timestamps
+
+**Assertions**: Most recent record kept
+
+#### 8. `test_commission_date_range_validation`
+**Purpose**: Validate commission dates are in valid range
+
+**Business Logic**:
+- Commission dates should be future dates
+- Filter past commission dates
+
+**Test Data**: Future dates, past dates
+
+**Assertions**:
+- Only future dates remain
+- Past dates filtered
+
+---
+
+### test_install_der_silver_layer.py (10 tests)
+
+#### 1. `test_installation_id_validation`
+**Purpose**: Validate installation ID data quality
+
+**Data Quality Rules**:
+- `installation_id IS NOT NULL`
+- `TRIM(installation_id) != ''`
+
+**Test Data**: Valid, NULL, empty, whitespace IDs
+
+**Assertions**: Only valid installation IDs remain
+
+#### 2. `test_commissioning_date_parsing`
+**Purpose**: Validate commission date parsing
+
+**Business Logic**:
+- Parse `commission_date` (YYYY-MM-DD) to date type
+
+**Test Data**: Valid dates, invalid format, NULL
+
+**Assertions**:
+- 3 valid dates parsed
+- Invalid dates → NULL
+
+#### 3. `test_capacity_validation_and_conversion`
+**Purpose**: Validate installation capacity values
+
+**Data Quality Rules**:
+- `capacity_kw > 0`
+- Convert string to double
+
+**Test Data**: Valid, negative, zero, decimal, non-numeric
+
+**Assertions**: Only positive numeric capacities remain
+
+#### 4. `test_technology_type_standardization`
+**Purpose**: Validate technology type standardization
+
+**Business Logic**:
+- Standardize case variations
+- Map aliases (PV → Solar, BESS → Battery)
+
+**Test Data**: Various technology type spellings
+
+**Assertions**:
+- 3 Solar (Solar, SOLAR, PV)
+- 2 Wind (Wind, wind)
+- 2 Battery (Battery, BESS)
+
+#### 5. `test_capacity_aggregation_by_circuit`
+**Purpose**: Validate aggregation of installed capacity by circuit
+
+**Business Logic**:
+- `SUM(capacity_kw)` per circuit
+- `COUNT(installation_id)` per circuit
+
+**Test Data**: 3 installations on CKT001, 1 on CKT002, 1 on CKT003
+
+**Assertions**:
+- CKT001: total = 850 kW (250 + 100 + 500), count = 3
+
+#### 6. `test_capacity_aggregation_by_technology_type`
+**Purpose**: Validate aggregation by technology type
+
+**Business Logic**:
+- `SUM(capacity_kw)` per technology
+- `AVG(capacity_kw)` per technology
+- `COUNT(installation_id)` per technology
+
+**Test Data**: 2 Solar, 2 Wind, 1 Battery
+
+**Assertions**:
+- Solar: total = 550 kW, avg = 275 kW, count = 2
+- Wind: total = 1250 kW, avg = 625 kW, count = 2
+
+#### 7. `test_location_validation`
+**Purpose**: Validate location data quality
+
+**Data Quality Rules**:
+- `location IS NOT NULL`
+- `TRIM(location) != ''`
+
+**Test Data**: Valid, NULL, empty, whitespace locations
+
+**Assertions**: Only valid locations remain
+
+#### 8. `test_commissioning_date_chronology`
+**Purpose**: Validate commission dates are within reasonable range
+
+**Business Logic**:
+- Commission dates within 2 years of reference date
+- Flag suspiciously far future dates
+
+**Test Data**: Past dates, near future, far future (2030)
+
+**Assertions**:
+- 3 installations within reasonable range
+- Far future date filtered
+
+#### 9. `test_duplicate_installation_id_handling`
+**Purpose**: Validate handling of duplicate installation IDs
+
+**Business Logic**:
+- Keep most recent record based on `ingestion_timestamp`
+
+**Test Data**: Duplicate INST001 with updated capacity
+
+**Assertions**: Most recent record kept
+
+---
 
 ## Running the Tests
 
-### Option 1: Using Databricks Asset Bundles (Recommended)
+### Option 1: Run All Silver Layer Tests
 
 ```bash
-# From your local development environment with databricks-connect
-cd /path/to/iedr_data_pipelines/iedr_project
+# Run all silver layer tests
+pytest tests/test_*_silver_layer.py -v
+
+# Run with coverage
+pytest tests/test_*_silver_layer.py --cov=src/pipelines/IEDR_Pipeline/transformations/silver --cov-report=html
+```
+
+### Option 2: Run Specific Test File
+
+```bash
+# Circuits tests only
+pytest tests/test_circuits_silver_layer.py -v
+
+# Planned DER tests only
+pytest tests/test_planned_der_silver_layer.py -v
+
+# Installed DER tests only
+pytest tests/test_install_der_silver_layer.py -v
+```
+
+### Option 3: Run Specific Test
+
+```bash
+# Run a single test
+pytest tests/test_circuits_silver_layer.py::TestCircuitsSilverLayer::test_utility1_segment_aggregation_to_circuit -v
+```
+
+### Option 4: Using Databricks Asset Bundles
+
+```bash
+# From project root
+cd /Users/prakash1857@gmail.com/feature_iedr_data_pipelines/iedr_project
 databricks bundle test
 ```
 
-This is the **recommended approach** as it:
-- Runs tests in isolation
-- Properly handles Spark session management
-- Integrates with CI/CD pipelines
-- Avoids Databricks workspace filesystem limitations
-
-### Option 2: Local Development with pytest
+## Prerequisites
 
 ```bash
-# Ensure databricks-connect is configured
-databricks auth login
-
 # Install test dependencies
-pip install pytest databricks-connect databricks-sdk
+pip install pytest databricks-connect databricks-sdk pyspark
 
-# Run all tests
-pytest tests/iedr_pipeline_test.py -v
-
-# Run specific test class
-pytest tests/iedr_pipeline_test.py::TestCircuitsSilverLayer -v
-
-# Run specific test
-pytest tests/iedr_pipeline_test.py::TestCircuitsSilverLayer::test_utility1_segment_aggregation -v
-
-# Run with coverage
-pytest tests/ --cov=src/pipelines/IEDR_Pipeline --cov-report=html
+# Configure Databricks authentication
+databricks auth login
 ```
 
-### Option 3: Notebook-Based Testing (Limited)
+## Test Patterns and Best Practices
 
-⚠️ **Note**: Direct pytest execution in Databricks notebooks has limitations due to:
-- Workspace filesystem constraints (`__pycache__` creation issues)
-- Module import conflicts
-- Pytest's file system requirements
+### AAA Pattern (Arrange, Act, Assert)
 
-If you need to run tests in a notebook, use the custom test runner approach:
-
-1. Navigate to: `/Workspace/Users/prakash1857@gmail.com/iedr_data_pipelines/iedr_project/src/pipelines/IEDR_Pipeline/explorations/run_silver_layer_tests`
-2. Run the notebook cells sequentially
-3. The notebook imports test functions and runs them without pytest framework
-
-## Test Fixtures
-
-Test fixtures are stored as JSON files in the `fixtures/` directory:
-
-### utility1_circuits_sample.json
-```json
-[
-  {
-    "circuit_id": "CKT001",
-    "segment_id": "SEG001",
-    "voltage_kv": "11.0",
-    "length_km": "2.5",
-    "capacity_mva": "10.0",
-    "load_mva": "7.5"
-  }
-]
-```
-
-### utility2_circuits_sample.json
-```json
-[
-  {
-    "circuit_id": "CKT101",
-    "voltage_kv": "22.0",
-    "total_length_km": "5.3",
-    "total_capacity_mva": "25.0",
-    "avg_load_mva": "18.2"
-  }
-]
-```
-
-## Pipeline Configuration
-
-The tests validate data according to the IEDR Pipeline configuration:
-
-```yaml
-Pipeline ID: 61758a1d-1c7a-4842-9817-e99191b5f4dd
-Catalog: iedr
-Schema: silver
-Target Tables:
-  - circuits
-  - circuits_scd (SCD Type 1)
-  - planned_der
-  - install_der
-  - circuit (gold layer)
-  - circuit_der (gold layer)
-
-Configuration:
-  - Photon: Enabled
-  - Serverless: Enabled
-  - Runtime: CURRENT channel
-```
-
-## Key Testing Patterns
-
-### 1. Schema Validation
-Tests verify that data adheres to expected schemas at each layer:
+All tests follow the Arrange-Act-Assert pattern:
 
 ```python
-def test_bronze_schema(spark):
-    expected_fields = ["circuit_id", "voltage_kv", ...]
+def test_example(self, spark):
+    # Arrange: Set up test data and schema
+    data = [...]
+    schema = StructType([...])
     df = spark.createDataFrame(data, schema)
-    for field in expected_fields:
-        assert field in df.columns
-```
-
-### 2. Transformation Logic
-Tests validate business logic transformations:
-
-```python
-def test_utility1_aggregation(spark):
-    # Input: Segment-level data
-    # Expected: Circuit-level aggregation
-    result = df.groupBy("circuit_id").agg(...)
+    
+    # Act: Apply transformation
+    result = df.filter(...)
+    
+    # Assert: Verify expectations
     assert result.count() == expected_count
 ```
 
-### 3. Data Quality Rules
-Tests ensure data quality constraints:
+### Using Fixtures
+
+Tests use the `spark` fixture from `conftest.py`:
 
 ```python
-def test_null_filtering(spark):
-    result = df.filter(col("circuit_id").isNotNull())
-    assert result.count() == valid_records_count
+@pytest.fixture()
+def spark() -> SparkSession:
+    return DatabricksSession.builder.getOrCreate()
 ```
 
-### 4. Integration Testing
-Tests validate cross-layer data flow:
+### Assertion Best Practices
 
-```python
-def test_circuits_to_der_join(spark):
-    result = circuits_df.join(der_df, "circuit_id")
-    assert result.count() == expected_joined_records
-```
+- Use descriptive assertion messages
+- Use `pytest.approx()` for floating-point comparisons
+- Test both positive and negative cases
+- Include edge cases (NULL, empty, zero)
 
-## Continuous Integration
+## Data Quality Rules Tested
+
+### Common Rules Across All Tests
+
+1. **ID Validation**:
+   - IDs must not be NULL
+   - IDs must not be empty strings
+   - IDs must not be whitespace only
+
+2. **Numeric Validation**:
+   - Capacity values must be > 0
+   - Voltage values must be > 0
+   - Type conversion from string to numeric
+
+3. **Date Validation**:
+   - Dates must parse correctly (YYYY-MM-DD format)
+   - Invalid dates result in NULL
+   - Dates should be within reasonable ranges
+
+4. **Deduplication**:
+   - Each ID appears only once in final output
+   - Keep most recent record based on timestamp
+
+5. **Technology Type Standardization**:
+   - Case-insensitive matching
+   - Alias mapping (PV → Solar, BESS → Battery)
+
+## CI/CD Integration
 
 ### GitHub Actions Example
 
 ```yaml
-name: IEDR Pipeline Tests
+name: Silver Layer Tests
 
 on: [push, pull_request]
 
@@ -235,89 +497,50 @@ jobs:
           python-version: '3.10'
       - name: Install dependencies
         run: |
-          pip install databricks-connect databricks-sdk pytest
-      - name: Configure Databricks
+          pip install databricks-connect databricks-sdk pytest pytest-cov
+      - name: Run silver layer tests
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
         run: |
-          databricks auth login --host $DATABRICKS_HOST --token $DATABRICKS_TOKEN
-      - name: Run tests
-        run: |
-          cd iedr_data_pipelines/iedr_project
-          databricks bundle test
-```
-
-## Test Maintenance
-
-### Adding New Tests
-
-1. **Create test function** following pytest naming convention (`test_*`)
-2. **Use fixtures** from `conftest.py` (spark, load_fixture)
-3. **Follow AAA pattern**: Arrange, Act, Assert
-4. **Add docstrings** explaining what is being tested
-5. **Update this README** with new test coverage
-
-### Example Test Template
-
-```python
-def test_new_transformation(self, spark):
-    """Test description: what are we validating?"""
-    # Arrange: Set up test data
-    data = [(...)]
-    schema = StructType([...])
-    df = spark.createDataFrame(data, schema)
-    
-    # Act: Apply transformation
-    result = df.transform(my_transformation)
-    
-    # Assert: Verify expectations
-    assert result.count() == expected_count
-    assert result.filter("condition").count() == expected_filtered_count
+          databricks auth login
+          pytest tests/test_*_silver_layer.py -v --cov --cov-report=xml
+      - name: Upload coverage
+        uses: codecov/codecov-action@v2
 ```
 
 ## Troubleshooting
 
-### Common Issues
+### Issue: Spark session not available
+**Solution**: Ensure Databricks Connect is configured: `databricks auth login`
 
-**Issue**: `OSError [Errno 95]: Operation not supported` when running pytest in notebooks
+### Issue: Module not found errors
+**Solution**: Run from project root directory where `src/` is accessible
 
-**Solution**: Use `databricks bundle test` from local environment or use the custom notebook test runner.
+### Issue: Tests fail with "RESOURCE_EXHAUSTED"
+**Solution**: Wait a moment and retry, or reduce parallel test execution
 
----
+### Issue: Date parsing failures
+**Solution**: Ensure date format matches YYYY-MM-DD in test data
 
-**Issue**: `Import file mismatch` errors
+## Next Steps
 
-**Solution**: Ensure you're running tests from the project root directory and avoid mixing notebook and local test executions.
-
----
-
-**Issue**: Spark fixture not found
-
-**Solution**: Ensure `conftest.py` is in the same directory as your test files and uses the correct Spark session initialization.
-
----
-
-**Issue**: Fixture files not found
-
-**Solution**: Verify `fixtures/` directory is at `iedr_data_pipelines/iedr_project/fixtures/` and contains required JSON files.
-
-## Best Practices
-
-1. **Test Isolation**: Each test should be independent and not rely on other tests
-2. **Data Driven**: Use parametrize for testing multiple scenarios
-3. **Meaningful Assertions**: Use descriptive assertion messages
-4. **Performance**: Keep individual tests fast (<5 seconds)
-5. **Coverage**: Aim for >80% code coverage for transformation logic
-6. **Documentation**: Keep this README updated with new tests
+1. **Add Integration Tests**: Test cross-layer joins (circuits ↔ DER)
+2. **Add Performance Tests**: Benchmark transformation performance
+3. **Add Fixture Files**: Create JSON fixtures for reusable test data
+4. **Increase Coverage**: Add tests for error handling and edge cases
+5. **Add Gold Layer Tests**: Test final analytics transformations
 
 ## Resources
 
-- [Databricks Connect Documentation](https://docs.databricks.com/dev-tools/databricks-connect.html)
-- [Databricks Asset Bundles Testing](https://docs.databricks.com/dev-tools/bundles/testing.html)
-- [pytest Documentation](https://docs.pytest.org/)
 - [PySpark Testing Guide](https://spark.apache.org/docs/latest/api/python/user_guide/testing.html)
+- [pytest Documentation](https://docs.pytest.org/)
+- [Databricks Connect](https://docs.databricks.com/dev-tools/databricks-connect.html)
+- [Databricks Asset Bundles Testing](https://docs.databricks.com/dev-tools/bundles/testing.html)
 
-## Contact
+---
 
-For questions or issues with the test suite, contact the IEDR Pipeline team or file an issue in the project repository.
+**Last Updated**: 2026-05-25  
+**Test Suite Version**: 1.0  
+**Total Tests**: 29  
+**Code Coverage**: Silver layer transformations
