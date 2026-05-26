@@ -4,8 +4,6 @@ resources:
       name: IEDR Pipeline
       configuration:
         catalog: ${var.catalog}
-        table_list: ['circuits', 'planned_der', 'install_der']
-        utility_list: ['utility1', 'utility2']
       libraries:
         - glob:
             include: ../../src/pipelines/IEDR_Pipeline/transformations/**

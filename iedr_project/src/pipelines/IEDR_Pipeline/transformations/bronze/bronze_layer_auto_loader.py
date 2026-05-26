@@ -6,12 +6,10 @@ from schemas.bronze_schemas import ddl_schema_map
 
 # Retrieve configuration parameters from pipeline settings
 catalog = spark.conf.get("catalog", "iedr")
-table_list = spark.conf.get("table_list", "['circuits', 'planned_der', 'install_der']")
-utility_list = spark.conf.get("utility_list", "['utility1', 'utility2']")  # Default to both utilities
 
-# Parse configuration strings to Python lists
-data_sources = ast.literal_eval(table_list)
-utilities = ast.literal_eval(utility_list)
+
+data_sources = ['circuits', 'planned_der', 'install_der']
+utilities = ['utility1', 'utility2']
 
 
 # Dynamic loop through all utilities and tables
