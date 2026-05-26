@@ -102,14 +102,14 @@ def circuit_der_normalized():
 
 # Create streaming table for SCD Type 1 target
 dp.create_streaming_table(
-    name="iedr.gold.circuit_der",
+    name=f"{catalog}.gold.circuit_der",
     comment="Gold layer: Combined installed and planned DER projects with SCD Type 1 tracking"
 )
 
 # Create Auto CDC flow to maintain SCD Type 1
 # Tracks latest state per project per utility
 dp.create_auto_cdc_flow(
-    target="iedr.gold.circuit_der",
+    target=f"{catalog}.gold.circuit_der",
     source="circuit_der_normalized",
     keys=["project_id", "utility_id"],
     sequence_by="ingestion_date",
