@@ -1,0 +1,36 @@
+# This workflow validates, deploy and run the specified bundle
+# Within a production target named "prod".
+name: 'Production deployment'
+
+# Ensure that only a single job or workflow is using the same concurrency group
+# runs 1 at atime.
+concurrency: 1
+
+# Trigger this workflow whenever a pull request is pushed to the repo's
+# main branch.
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'iedr_project/**'
+
+jobs:
+  deploy:
+    name: 'Deploy bundle'
+    runs-on: ubuntu-latest
+
+    steps:
+      # Check out this repo, sothat this workflow can access it.
+      - uses: actions/checkout@v3
+
+      # Download the Databricks CLI.
+      - uses: databricks/setup-cli@main
+
+      # Deploy the bundle to the "prod" target as difined
+      # in the bundle's setting file.
+      - run: databricks bundle deploy
+        working-directory: iedr_project
+        env:
+          DATABRICKS_TOKEN: ${{ secrets.SP_TOKEN}}
+          DATABRICKS_BUNDLE_ENV: prod
