@@ -25,6 +25,7 @@ def circuit_normalized():
             col("data_source").alias("circuit_data_source"),
             col("shape_length"),
             col("num_segments"),
+            col("data_quality_flag")
             col("ingestion_date")
         )
     
