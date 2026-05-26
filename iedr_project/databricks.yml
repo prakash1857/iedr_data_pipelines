@@ -23,8 +23,6 @@ targets:
       host: https://dbc-8bd3ea9d-cb6c.cloud.databricks.com
     variables:
       catalog: iedr
-      table_list: ['circuits', 'planned_der', 'install_der']
-      utility_list: ['utility1', 'utility2']
   prod:
     mode: production
     workspace:
