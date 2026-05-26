@@ -4,6 +4,8 @@ resources:
       name: IEDR Pipeline
       configuration:
         catalog: ${var.catalog}
+        pipelines.maxFlowRetryAttempts: "1"
+        pipelines.numUpdateRetryAttempts: "1"
       libraries:
         - glob:
             include: ../../src/pipelines/IEDR_Pipeline/transformations/**
