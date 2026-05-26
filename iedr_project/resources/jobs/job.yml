@@ -15,4 +15,10 @@ resources:
         - task_key: pipeline-task-iedr
           pipeline_task:
             pipeline_id: ${resources.pipelines.pipeline_iedr_pipeline.id}
+          # Automatic retries if it fails
+          max_retries: 2 
+          # Wait time before retrying (in milliseconds). 300,000 ms = 5 minutes
+          min_retry_interval_millis: 300000 
+          # Optional: Prevent retries if the previous run was canceled by a user
+          retry_on_timeout: false 
       performance_target: PERFORMANCE_OPTIMIZED
