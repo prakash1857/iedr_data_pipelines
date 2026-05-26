@@ -1,0 +1,18 @@
+resources:
+  jobs:
+    IEDR_Pipeline_job:
+      name: IEDR Pipeline_job
+      email_notifications:
+        on_failure:
+          - prakash1857@gmail.com
+      notification_settings:
+        no_alert_for_skipped_runs: true
+      schedule:
+        quartz_cron_expression: 3 0 8 1 * ?
+        timezone_id: America/Chicago
+        pause_status: UNPAUSED
+      tasks:
+        - task_key: pipeline-task-iedr
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.pipeline_iedr_pipeline.id}
+      performance_target: PERFORMANCE_OPTIMIZED
