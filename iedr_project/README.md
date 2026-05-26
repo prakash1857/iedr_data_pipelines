@@ -104,6 +104,8 @@ iedr_project/
 │   ├── test_install_der_silver_layer.py         # Installed DER tests (10 tests)
 │   └── README.md                                # Comprehensive test documentation
 ├── resources/
+│   ├── jobs/
+│   │   └── job.yml                              # Job configuration
 │   ├── pipelines/
 │   │   └── pipeline.yml                         # Pipeline configuration
 │   └── variables/
