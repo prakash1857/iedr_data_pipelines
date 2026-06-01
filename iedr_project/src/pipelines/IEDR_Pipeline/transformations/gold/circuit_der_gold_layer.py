@@ -15,7 +15,7 @@ def circuit_der_normalized():
     """
     
     # ========== READ INSTALLED DER DATA ==========
-    install_der = spark.readStream.table("iedr.silver.install_der") \
+    install_der = spark.readStream.table(f"{catalog}.silver.install_der") \
         .select(
             col("project_id"),
             col("project_type"),
@@ -50,7 +50,7 @@ def circuit_der_normalized():
         )
     
     # ========== READ PLANNED DER DATA ==========
-    planned_der = spark.readStream.table("iedr.silver.planned_der") \
+    planned_der = spark.readStream.table(f"{catalog}.silver.planned_der") \
         .select(
             col("project_id"),
             col("project_type"),
