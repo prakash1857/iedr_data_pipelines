@@ -1,6 +1,6 @@
 # This workflow validates, deploy and run the specified bundle
 # Within a development target named "dev".
-name: 'Production deployment'
+name: 'Dev deployment'
 
 # Ensure that only a single job or workflow is using the same concurrency group
 # runs 1 at atime.
