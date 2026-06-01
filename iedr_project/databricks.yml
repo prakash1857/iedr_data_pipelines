@@ -32,5 +32,5 @@ targets:
     variables:
       catalog: prod_iedr
     permissions:
-      - group_name: admins
+      - user_name: prakash1857@gmail.com
         level: CAN_MANAGE
