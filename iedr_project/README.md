@@ -59,22 +59,22 @@ The IEDR Pipeline is a Databricks Lakeflow pipeline that ingests, transforms, an
 
 ### Utility1 - Segment-Level Circuit Data
 - **Granularity**: Circuit segments
-- **Key Fields**: circuit_id, segment_id, voltage_kv, length_km, capacity_mva, load_mva
-- **Transformation**: Aggregated to circuit level (SUM length, AVG load)
+- **Key Fields**: circuit_id, segment_id, voltage_kv, length_km, capacity_mw
+- **Transformation**: Aggregated to circuit level (SUM length, max and min capacity, max voltage)
 
 ### Utility2 - Circuit-Level Data
 - **Granularity**: Circuits
-- **Key Fields**: circuit_id, voltage_kv, total_length_km, total_capacity_mva, avg_load_mva
+- **Key Fields**: circuit_id, voltage_kv, total_length_km, total_capacity_mw
 - **Transformation**: Normalized and unioned with Utility1 data
 
 ### Planned DER Projects
 - **Purpose**: Track future distributed energy resource installations
-- **Key Fields**: project_id, circuit_id, technology_type, capacity_kw, planned_commission_date, project_status
+- **Key Fields**: project_id, circuit_id, technology_type, capacity_mw, planned_commission_date, project_status
 - **Filters**: Only 'Planned' or 'Approved' projects
 
 ### Installed DER Systems
 - **Purpose**: Track operational distributed energy resources
-- **Key Fields**: installation_id, circuit_id, technology_type, capacity_kw, commission_date, location
+- **Key Fields**: installation_id, circuit_id, technology_type, capacity_mw, commission_date, location
 - **Aggregations**: Total capacity by circuit and technology type
 
 ## 🗂️ Project Structure
@@ -137,10 +137,10 @@ Continuously ingests raw data files from cloud storage using Auto Loader:
 ```python
 # Aggregate segment-level to circuit-level
 GROUP BY circuit_id
-  SUM(length_km) as total_length_km
-  SUM(capacity_mva) as total_capacity_mva
-  AVG(load_mva) as avg_load_mva
-  AVG(voltage_kv) as voltage_kv
+  SUM(shape_length) as total_length
+  max(hosting_capacity_mw) as max_hosting_capacity_mw
+  min(hosting_capacity_mw) as min_hosting_capacity_mw
+  max(voltage_kv) as voltage_kv
 ```
 
 **Utility2 Processing**:
@@ -152,7 +152,6 @@ GROUP BY circuit_id
 - Union Utility1 and Utility2 data
 - Filter NULL/empty circuit_ids
 - Validate positive voltages and capacities
-- Calculate utilization percentage: `(avg_load / total_capacity) * 100`
 - Deduplicate keeping most recent record
 
 ### Silver Layer - Planned DER Processing
@@ -166,13 +165,6 @@ GROUP BY circuit_id
 - Project Status: Include only 'Planned' or 'Approved'
 - Technology Type: Standardize (Solar/SOLAR/PV → Solar, BESS → Battery)
 
-**Aggregations**:
-```python
-# Total planned capacity per circuit
-GROUP BY circuit_id
-  SUM(capacity_kw) as total_planned_capacity_kw
-  COUNT(project_id) as project_count
-```
 
 ### Silver Layer - Installed DER Processing
 
@@ -185,19 +177,6 @@ GROUP BY circuit_id
 - Location: NOT NULL, not empty
 - Technology Type: Standardize aliases
 
-**Aggregations**:
-```python
-# By Circuit
-GROUP BY circuit_id
-  SUM(capacity_kw) as total_installed_capacity_kw
-  COUNT(installation_id) as installation_count
-
-# By Technology
-GROUP BY technology_type
-  SUM(capacity_kw) as total_capacity_kw
-  AVG(capacity_kw) as avg_capacity_kw
-  COUNT(installation_id) as installation_count
-```
 
 ### Silver Layer - SCD Type 1
 
@@ -215,10 +194,6 @@ Implements Slowly Changing Dimension Type 1 for circuit tracking:
 
 Creates analytics-ready circuit data:
 - Circuit utilization metrics
-- Capacity vs. load analysis
-- Voltage level categorization
-- Geographic aggregations
-- Time-series trends
 
 ### Gold Layer - Circuit-DER Analytics
 
@@ -322,7 +297,6 @@ voltage_kv            DOUBLE
 total_length_km       DOUBLE    
 total_capacity_mva    DOUBLE    
 avg_load_mva         DOUBLE    
-utilization_pct      DOUBLE    (Calculated: avg_load/capacity * 100)
 source_system        STRING    (utility1 or utility2)
 ingestion_timestamp  TIMESTAMP
 update_timestamp     TIMESTAMP

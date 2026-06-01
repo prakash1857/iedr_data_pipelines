@@ -284,49 +284,6 @@ class TestCircuitsSilverLayer:
         assert "CKT001" in valid_circuits
         assert "CKT004" in valid_circuits  # Zero load is acceptable
     
-    def test_utilization_calculation(self, spark):
-        """Test circuit utilization percentage calculation.
-        
-        Business Logic:
-        - utilization_pct = (avg_load_mva / total_capacity_mva) * 100
-        - Should handle edge cases (zero capacity)
-        """
-        # Arrange: Create circuit data
-        data = [
-            ("CKT001", 11.0, 4.3, 20.0, 6.85),      # 34.25% utilization
-            ("CKT002", 22.0, 5.3, 25.0, 18.75),     # 75% utilization
-            ("CKT003", 11.0, 3.2, 12.0, 12.0),      # 100% utilization
-            ("CKT004", 33.0, 7.8, 50.0, 0.0),       # 0% utilization
-        ]
-        
-        schema = StructType([
-            StructField("circuit_id", StringType()),
-            StructField("voltage_kv", DoubleType()),
-            StructField("total_length_km", DoubleType()),
-            StructField("total_capacity_mva", DoubleType()),
-            StructField("avg_load_mva", DoubleType()),
-        ])
-        
-        df = spark.createDataFrame(data, schema)
-        
-        # Act: Calculate utilization
-        result = df.withColumn(
-            "utilization_pct",
-            (col("avg_load_mva") / col("total_capacity_mva")) * 100
-        )
-        
-        # Assert: Verify calculations
-        ckt001 = result.filter("circuit_id = 'CKT001'").collect()[0]
-        assert ckt001["utilization_pct"] == pytest.approx(34.25, 0.01)
-        
-        ckt002 = result.filter("circuit_id = 'CKT002'").collect()[0]
-        assert ckt002["utilization_pct"] == pytest.approx(75.0, 0.01)
-        
-        ckt003 = result.filter("circuit_id = 'CKT003'").collect()[0]
-        assert ckt003["utilization_pct"] == pytest.approx(100.0, 0.01)
-        
-        ckt004 = result.filter("circuit_id = 'CKT004'").collect()[0]
-        assert ckt004["utilization_pct"] == pytest.approx(0.0, 0.01)
     
     def test_deduplication(self, spark):
         """Test that duplicate circuit records are handled correctly.

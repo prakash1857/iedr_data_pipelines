@@ -13,7 +13,7 @@ Tests cover:
 import pytest
 from pyspark.sql import SparkSession
 from pyspark.sql.types import StructType, StructField, StringType, DoubleType, DateType, TimestampType
-from pyspark.sql.functions import col, to_date, trim, count, sum as spark_sum
+from pyspark.sql.functions import col, to_date, trim, count, sum as spark_sum, expr
 from datetime import datetime, date
 
 
@@ -94,7 +94,7 @@ class TestPlannedDERSilverLayer:
         # Act: Parse dates
         result = df.withColumn(
             "commission_date",
-            to_date(col("planned_commission_date"), "yyyy-MM-dd")
+            expr("try_to_date(planned_commission_date, 'yyyy-MM-dd')")
         )
         
         # Assert: Verify date parsing
@@ -186,7 +186,7 @@ class TestPlannedDERSilverLayer:
         from pyspark.sql.functions import when
         result = df.withColumn(
             "capacity_kw_numeric",
-            col("capacity_kw").cast("double")
+            expr("try_cast(capacity_kw as double)")
         ).filter(
             (col("capacity_kw_numeric").isNotNull()) &
             (col("capacity_kw_numeric") > 0)
@@ -398,4 +398,4 @@ class TestPlannedDERSilverLayer:
 
 
 if __name__ == "__main__":
-    pytest.main([__file__, "-v"])
+    pytest.main(["-v"])
