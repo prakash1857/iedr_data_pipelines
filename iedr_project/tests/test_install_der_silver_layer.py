@@ -14,7 +14,7 @@ Tests cover:
 import pytest
 from pyspark.sql import SparkSession
 from pyspark.sql.types import StructType, StructField, StringType, DoubleType, DateType, TimestampType
-from pyspark.sql.functions import col, to_date, trim, count, sum as spark_sum, avg
+from pyspark.sql.functions import col, to_date, trim, count, sum as spark_sum, avg, expr
 from datetime import datetime, date
 
 
@@ -92,12 +92,12 @@ class TestInstallDERSilverLayer:
         # Act: Parse dates
         result = df.withColumn(
             "commission_date_parsed",
-            to_date(col("commission_date"), "yyyy-MM-dd")
+            expr("try_to_date(commission_date, 'yyyy-MM-dd')")
         )
         
         # Assert: Verify date parsing
         valid_dates = result.filter("commission_date_parsed IS NOT NULL").count()
-        assert valid_dates == 3, "Should have 3 valid dates"
+        assert valid_dates == 3, "Should have 4 valid dates"
         
         # Verify specific date
         inst001 = result.filter("installation_id = 'INST001'").collect()[0]
@@ -138,7 +138,7 @@ class TestInstallDERSilverLayer:
         # Act: Convert and validate capacity
         result = df.withColumn(
             "capacity_kw_numeric",
-            col("capacity_kw").cast("double")
+            expr("try_cast(capacity_kw as double)")
         ).filter(
             (col("capacity_kw_numeric").isNotNull()) &
             (col("capacity_kw_numeric") > 0)
@@ -235,7 +235,7 @@ class TestInstallDERSilverLayer:
         df = spark.createDataFrame(data, schema)
         
         # Act: Aggregate by circuit
-        result = df.withColumn("capacity_kw", col("capacity_kw").cast("double")) \
+        result = df.withColumn("capacity_kw", expr("try_cast(capacity_kw as double)")) \
                    .groupBy("circuit_id") \
                    .agg(
                        spark_sum("capacity_kw").alias("total_installed_capacity_kw"),
@@ -283,7 +283,7 @@ class TestInstallDERSilverLayer:
         df = spark.createDataFrame(data, schema)
         
         # Act: Aggregate by technology type
-        result = df.withColumn("capacity_kw", col("capacity_kw").cast("double")) \
+        result = df.withColumn("capacity_kw", expr("try_cast(capacity_kw as double)")) \
                    .groupBy("technology_type") \
                    .agg(
                        spark_sum("capacity_kw").alias("total_capacity_kw"),
@@ -433,4 +433,4 @@ class TestInstallDERSilverLayer:
 
 
 if __name__ == "__main__":
-    pytest.main([__file__, "-v"])
+    pytest.main(["-v"])
